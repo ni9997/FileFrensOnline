@@ -7,20 +7,25 @@ import hashlib
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 key = eval(os.getenv('AES_KEY'))
 # cipher = AES.new(key, AES.MODE_CBC)
-iv = get_random_bytes(16)
+MODE = AES.MODE_GCM
+FILE_SIZE = 24*1024*1024
+LIMIT = 1000
 
-
+templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.post("/upload/")
 async def create_upload_file(file: UploadFile):
@@ -47,11 +52,37 @@ async def read_item(filename: str):
         'records': await client.fetch_channel(1178293013466849381),
     }
     f = download_file(filename, channels)
-    return StreamingResponse(f, media_type="application/octet-stream") 
+    return StreamingResponse(f, media_type="application/octet-stream")
 
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    intents = discord.Intents.default()
+    intents.message_content = True
+    client = discord.Client(intents=intents)
+    await client.login(TOKEN)
+
+    channels = {
+        'storage': await client.fetch_channel(1178285965056417862),
+        'records': await client.fetch_channel(1178293013466849381),
+    }
+    files = await get_all_files(channels)
+    return templates.TemplateResponse("index.html", {"request": request, "files": files})
+
+
+
+
+
+
+
+async def get_all_files(channels: dict[str, discord.TextChannel]):
+    files = []
+    async for msg in channels['records'].history(limit=LIMIT):
+        temp = msg.content.split("\n")
+        files.append(temp[0])
+    return files
 
 async def file_exists(path, channels: dict[str, discord.TextChannel]) -> bool:
-    async for msg in channels['records'].history(limit=1_000):
+    async for msg in channels['records'].history(limit=LIMIT):
         temp = msg.content.split("\n")
         if temp[0] == path:
             return True
@@ -59,10 +90,10 @@ async def file_exists(path, channels: dict[str, discord.TextChannel]) -> bool:
 
 async def clear_history(channels: dict[str, discord.TextChannel]):
     for key in channels:
-        await channels[key].purge(limit=1_000)
+        await channels[key].purge(limit=LIMIT)
 
 async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
-    cipher = AES.new(key, AES.MODE_CBC, iv)
+    cipher = AES.new(key, MODE)
     if await file_exists(file.filename, channels):
         print("Gibt schon")
         return
@@ -70,7 +101,7 @@ async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
     message_ids = []
     counter = 0
     while True:
-        data = await file.read(24*1024*1024)
+        data = await file.read(FILE_SIZE)
         if not data:
             break
         sha1.update(data)
@@ -81,8 +112,8 @@ async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
     await channels['records'].send(f"{file.filename}\n{sha1.hexdigest()}", file=discord.File(io.BytesIO(bytes(",".join(message_ids), encoding="UTF-8")), filename="message_ids"))
 
 async def download_file(name: str, channels: dict[str, discord.TextChannel]):
-    async for msg in channels['records'].history(limit=1_000):
-        cipher = AES.new(key, AES.MODE_CBC, iv)
+    async for msg in channels['records'].history(limit=LIMIT):
+        cipher = AES.new(key, MODE)
         temp = msg.content.split("\n")
         if temp[0] == name:
             # print("file found")

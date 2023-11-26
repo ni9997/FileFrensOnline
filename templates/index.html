@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload and Download</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+</head>
+<body>
+    <h1>File Upload and Download</h1>
+
+    <form action="/upload/" method="post" enctype="multipart/form-data">
+        <label for="file">Upload File:</label>
+        <input type="file" name="file" id="file" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    {% for file in files %}
+    <li><a href="/file/{{file}}">{{file}}</a></li>
+    {% endfor %}
+</body>
+</html>
