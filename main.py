@@ -107,9 +107,11 @@ async def clear_history(channels: dict[str, discord.TextChannel]):
         await channels[key].purge(limit=LIMIT)
 
 async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
-    cipher = AES.new(key, MODE)
+    nonce = get_random_bytes(12)
+    print(f"ENCRYPT NONCE: {nonce}")
+    cipher = AES.new(key, MODE, nonce)
     if await file_exists(file.filename, channels):
-        print("Gibt schon")
+        # print("Gibt schon")
         return
     sha1 = hashlib.sha1()
     message_ids = []
@@ -119,16 +121,19 @@ async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
         if not data:
             break
         sha1.update(data)
-        message = await channels['storage'].send(f"", file=discord.File(fp=io.BytesIO(cipher.encrypt(pad(data, 16))), filename=f"{file.filename}_{counter}"))
+        message = await channels['storage'].send(f"", file=discord.File(fp=io.BytesIO(cipher.encrypt(data)), filename=f"{file.filename}_{counter}"))
         message_ids.append(str(message.id))
         # print(message)
         counter += 1
-    await channels['records'].send(f"{file.filename}\n{sha1.hexdigest()}", file=discord.File(io.BytesIO(bytes(",".join(message_ids), encoding="UTF-8")), filename="message_ids"))
+    # nonce_str = nonce.decode("UTF-8")
+    await channels['records'].send(f"{file.filename}\n{sha1.hexdigest()}\n{nonce}", file=discord.File(io.BytesIO(bytes(",".join(message_ids), encoding="UTF-8")), filename="message_ids"))
 
 async def download_file(name: str, channels: dict[str, discord.TextChannel]):
     async for msg in channels['records'].history(limit=LIMIT):
-        cipher = AES.new(key, MODE)
         temp = msg.content.split("\n")
+        nonce = eval(temp[2])
+        print(f"DECRYPT NONCE: {nonce}")
+        cipher = AES.new(key, MODE, nonce)
         if temp[0] == name:
             # print("file found")
             f = msg.attachments[0]
@@ -142,11 +147,11 @@ async def download_file(name: str, channels: dict[str, discord.TextChannel]):
                 # print(msg)
                 
                 data = await msg.attachments[0].read()
-                print(data)
+                # print(data)
                 data = cipher.decrypt(data)
-                print(data)
-                data = unpad(data, 16)
-                print(data)
+                # print(data)
+                # data = unpad(data, 16)
+                # print(data)
                 sha1.update(data)
                 yield data
                 # f.write(data)
