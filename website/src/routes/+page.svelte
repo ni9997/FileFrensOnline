@@ -1,6 +1,7 @@
 <!-- YOU CAN DELETE EVERYTHING IN THIS PAGE -->
 <script lang="ts">
 	import FileInfo from '$lib/components/FileInfo/FileInfo.svelte';
+	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -8,7 +9,7 @@
 
 <div class="container h-full mx-auto flex justify-center items-center">
 	{#await data.streamed.files}
-		Loading
+		<ProgressRadial />
 	{:then files}
 		<ul class="min-w-[50%]">
 			{#each files as f}
