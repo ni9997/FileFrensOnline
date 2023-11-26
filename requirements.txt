@@ -3,3 +3,5 @@ uvicorn[standard]
 discord.py
 python-dotenv
 pycryptodome
+jinja2
+python-multipart
