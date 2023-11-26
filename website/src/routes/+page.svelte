@@ -11,7 +11,7 @@
 	{#await data.streamed.files}
 		<ProgressRadial />
 	{:then files}
-		<ul class="min-w-[50%]">
+		<ul class="xl:max-w-[50%] space-y-4 w-full m-4">
 			{#each files as f}
 				<FileInfo filename={f}></FileInfo>
 			{/each}
