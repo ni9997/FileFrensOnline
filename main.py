@@ -11,6 +11,8 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+import argparse
 
 
 load_dotenv()
@@ -25,9 +27,19 @@ templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+origins = [
+    "http://localhost:8000",
+    "http://localhost:5173",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.post("/upload/")
+@app.post("/api/upload/")
 async def create_upload_file(file: UploadFile):
     intents = discord.Intents.default()
     intents.message_content = True
@@ -40,7 +52,7 @@ async def create_upload_file(file: UploadFile):
     }
     await send_file(file, channels=channels)
 
-@app.get("/file/{filename}")
+@app.get("/api/file/{filename}")
 async def read_item(filename: str):
     intents = discord.Intents.default()
     intents.message_content = True
@@ -54,8 +66,8 @@ async def read_item(filename: str):
     f = download_file(filename, channels)
     return StreamingResponse(f, media_type="application/octet-stream")
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+@app.get("/api/files")
+async def get_files():
     intents = discord.Intents.default()
     intents.message_content = True
     client = discord.Client(intents=intents)
@@ -66,11 +78,13 @@ async def read_root(request: Request):
         'records': await client.fetch_channel(1178293013466849381),
     }
     files = await get_all_files(channels)
-    return templates.TemplateResponse("index.html", {"request": request, "files": files})
+    return files
 
 
 
 
+
+app.mount("/", StaticFiles(directory="website/build", html=True), name="website")
 
 
 
@@ -139,6 +153,20 @@ async def download_file(name: str, channels: dict[str, discord.TextChannel]):
             ok = sha1.hexdigest()==temp[1]
             print(f"Checksum match {ok}")
 
+async def clear():
+    intents = discord.Intents.default()
+    intents.message_content = True
+
+    client = discord.Client(intents=intents)
+    await client.login(TOKEN)
+
+    channels = {
+        'storage': await client.fetch_channel(1178285965056417862),
+        'records': await client.fetch_channel(1178293013466849381),
+    }
+
+    await clear_history(channels=channels)
+    await client.close()
 
 async def main():
     intents = discord.Intents.default()
@@ -160,11 +188,15 @@ async def main():
 # asyncio.run(main())
 
 if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="127.0.0.1", port=8000)
-    # with open("file2.txt", 'rb') as a:
-    #     print(a.read().hex())
-
-    # with open("text2.txt", 'rb') as a:
-    #     print(a.read().hex())
+    parser = argparse.ArgumentParser(
+        prog="FileFrensOnline"
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--mode", choices=['clear', 'website'], default='website')
+    result = parser.parse_args()
+    
+    if result.mode == "clear":
+        asyncio.run(clear())
+    if result.mode == "website":
+        import uvicorn
+        uvicorn.run(app, host="127.0.0.1", port=8000)
