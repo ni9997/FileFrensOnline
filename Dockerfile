@@ -6,13 +6,13 @@ RUN npm run build
 
 FROM python:3.12.0-slim-bookworm
 
-COPY main.py ./opt/app/main.py
-COPY --from=builder /opt/website/build /opt/app/website/build
-COPY requirements.txt /opt/app/requirements.txt
+COPY ./app/ ./opt/filefrens/app/
+COPY --from=builder /opt/website/build /opt/filefrens/website/build
+COPY requirements.txt /opt/filefrens/requirements.txt
 
 RUN apt update
 RUN apt install -y build-essential
-WORKDIR /opt/app
+WORKDIR /opt/filefrens
 RUN pip install -r requirements.txt
 EXPOSE 8000
-CMD [ "python", "main.py" ]
+CMD [ "uvicorn", "app.main:app",  "--host", "0.0.0.0", "--port", "8000" ]

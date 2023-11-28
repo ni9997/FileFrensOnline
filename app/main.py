@@ -23,8 +23,6 @@ MODE = AES.MODE_GCM
 FILE_SIZE = 24*1024*1024
 LIMIT = 1000
 
-templates = Jinja2Templates(directory="templates")
-
 app = FastAPI()
 
 origins = [
@@ -173,22 +171,22 @@ async def clear():
     await clear_history(channels=channels)
     await client.close()
 
-async def main():
-    intents = discord.Intents.default()
-    intents.message_content = True
+# async def main():
+#     intents = discord.Intents.default()
+#     intents.message_content = True
 
-    client = discord.Client(intents=intents)
-    await client.login(TOKEN)
+#     client = discord.Client(intents=intents)
+#     await client.login(TOKEN)
 
-    channels = {
-        'storage': await client.fetch_channel(1178285965056417862),
-        'records': await client.fetch_channel(1178293013466849381),
-    }
+#     channels = {
+#         'storage': await client.fetch_channel(1178285965056417862),
+#         'records': await client.fetch_channel(1178293013466849381),
+#     }
 
-    await clear_history(channels=channels)
-    # await send_file("files/Rick.and.Morty.S07E05.1080p.10bit.WEBRip.6CH.x265.HEVC-PSA.mkv", channels=channels)
-    # await download_file("files/Rick.and.Morty.S07E05.1080p.10bit.WEBRip.6CH.x265.HEVC-PSA.mkv", channels=channels)
-    await client.close()
+#     await clear_history(channels=channels)
+#     # await send_file("files/Rick.and.Morty.S07E05.1080p.10bit.WEBRip.6CH.x265.HEVC-PSA.mkv", channels=channels)
+#     # await download_file("files/Rick.and.Morty.S07E05.1080p.10bit.WEBRip.6CH.x265.HEVC-PSA.mkv", channels=channels)
+#     await client.close()
 
 # asyncio.run(main())
 
