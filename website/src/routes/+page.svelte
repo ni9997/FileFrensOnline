@@ -8,6 +8,7 @@
 
 	let filelist: FileList;
 	let upload_form: HTMLFormElement;
+        let upload_url_form: HTMLFormElement;
 
 	// function onChangeHandler(e: Event): void {
 	// 	// console.log(e);
@@ -26,18 +27,56 @@
 
 <div class="flex w-full justify-center items-center xl:max-w-[50%] mx-auto">
 	<div class="flex flex-col w-full gap-4 my-4 px-4">
-		<form
-			class="w-full"
-			action="http://localhost:8000/api/upload/"
-			method="post"
-			enctype="multipart/form-data"
-			bind:this={upload_form}
-		>
-		<div class="flex flex-col gap-2">
-			<FileDropzone name="file" />
-			<button type="submit" class="btn variant-filled">UPLOAD</button>
-		</div>
-		</form>
+		
+
+
+
+
+<div class="flex flex-col gap-4">
+  <!-- File Upload Form -->
+  <form
+    class="w-full flex flex-col gap-4"
+    action="/api/upload/"
+    method="post"
+    enctype="multipart/form-data"
+    bind:this="{upload_form}"
+  >
+    <div class="flex flex-col md:flex-row items-center gap-4">
+      <div class="flex-grow">
+        <FileDropzone name="file" />
+      </div>
+      <button type="submit" class="btn variant-filled">
+        UPLOAD
+      </button>
+    </div>
+  </form>
+
+  <!-- URL Upload Form -->
+  <form
+    class="w-full flex flex-col gap-4"
+    action="/api/upload_url/"
+    method="post"
+    enctype="application/x-www-form-urlencoded"
+    bind:this="{upload_url_form}"
+  >
+    <div class="flex flex-col md:flex-row items-center gap-4">
+      <input
+        type="text"
+        name="url"
+        placeholder="Enter URL"
+        required
+        class="flex-grow px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+      />
+      <button type="submit" class="btn variant-filled">
+        REMOTE
+      </button>
+    </div>
+  </form>
+</div>
+
+
+
+
 		<!-- <div>TEST</div> -->
 		<hr class="!border-t-2" />
 		<!-- <div>TEST2</div> -->
