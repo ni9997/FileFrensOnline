@@ -2,18 +2,22 @@ import os
 from dotenv import load_dotenv
 import discord
 import asyncio
+import aiohttp
 import io
+from aiohttp import ClientSession
 import hashlib
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Form
+from pydantic import HttpUrl
+from urllib.parse import urlparse
 import argparse
-
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -22,6 +26,8 @@ key = eval(os.getenv('AES_KEY'))
 MODE = AES.MODE_GCM
 FILE_SIZE = 24*1024*1024
 LIMIT = 1000
+CHANNEL_ID_STORAGE = 1178285965056417862
+CHANNEL_ID_RECORDS = 1178293013466849381
 
 app = FastAPI()
 
@@ -39,16 +45,55 @@ app.add_middleware(
 
 @app.post("/api/upload/")
 async def create_upload_file(file: UploadFile):
-    intents = discord.Intents.default()
-    intents.message_content = True
-    client = discord.Client(intents=intents)
-    await client.login(TOKEN)
+    if file.size != 0:
 
-    channels = {
-        'storage': await client.fetch_channel(1178285965056417862),
-        'records': await client.fetch_channel(1178293013466849381),
-    }
-    await send_file(file, channels=channels)
+        intents = discord.Intents.default()
+        intents.message_content = True
+        client = discord.Client(intents=intents)
+        await client.login(TOKEN)
+
+        channels = {
+            'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+            'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
+        }
+        await send_file(file, channels=channels)
+    return RedirectResponse("/", status_code=302)
+
+
+
+@app.post("/api/upload_url/")
+async def upload_file_from_url(url: str = Form(...)):
+    parsed_url = urlparse(url)
+    filename = os.path.basename(parsed_url.path)
+
+    # Fetch the file from the URL using streaming
+    async with ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=response.status,
+                    detail=f"Failed to fetch URL with status code {response.status}"
+                )
+            
+            # Fetch the Discord channels
+            intents = discord.Intents.default()
+            intents.message_content = True
+            client = discord.Client(intents=intents)
+            await client.login(TOKEN)
+
+            channels = {
+                'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+                'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
+            }
+
+            await send_file(
+                UploadFile(filename=filename, file=io.BytesIO(await response.read())),  # Read content into bytes buffer
+                channels
+            )
+
+    return {"message": "File uploaded successfully"}
+
+
 
 @app.get("/api/file/{filename}")
 async def read_item(filename: str):
@@ -58,8 +103,8 @@ async def read_item(filename: str):
     await client.login(TOKEN)
 
     channels = {
-        'storage': await client.fetch_channel(1178285965056417862),
-        'records': await client.fetch_channel(1178293013466849381),
+        'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+        'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
     }
     f = download_file(filename, channels)
     return StreamingResponse(f, media_type="application/octet-stream")
@@ -72,8 +117,8 @@ async def get_files():
     await client.login(TOKEN)
 
     channels = {
-        'storage': await client.fetch_channel(1178285965056417862),
-        'records': await client.fetch_channel(1178293013466849381),
+        'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+        'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
     }
     files = await get_all_files(channels)
     return files
@@ -103,6 +148,7 @@ async def file_exists(path, channels: dict[str, discord.TextChannel]) -> bool:
 async def clear_history(channels: dict[str, discord.TextChannel]):
     for key in channels:
         await channels[key].purge(limit=LIMIT)
+
 
 async def send_file(file: UploadFile, channels: dict[str, discord.TextChannel]):
     nonce = get_random_bytes(12)
@@ -164,8 +210,8 @@ async def clear():
     await client.login(TOKEN)
 
     channels = {
-        'storage': await client.fetch_channel(1178285965056417862),
-        'records': await client.fetch_channel(1178293013466849381),
+        'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+        'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
     }
 
     await clear_history(channels=channels)
@@ -179,8 +225,8 @@ async def clear():
 #     await client.login(TOKEN)
 
 #     channels = {
-#         'storage': await client.fetch_channel(1178285965056417862),
-#         'records': await client.fetch_channel(1178293013466849381),
+#         'storage': await client.fetch_channel(CHANNEL_ID_STORAGE),
+#         'records': await client.fetch_channel(CHANNEL_ID_RECORDS),
 #     }
 
 #     await clear_history(channels=channels)
