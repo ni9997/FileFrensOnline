@@ -1,5 +1,6 @@
 FROM node:lts-slim as  builder
 COPY ./website /opt/website
+COPY .env /opt/website/.env
 WORKDIR /opt/website
 RUN npm ci
 RUN npm run build

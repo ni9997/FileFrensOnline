@@ -5,3 +5,4 @@ python-dotenv
 pycryptodome
 jinja2
 python-multipart
+aiofiles
