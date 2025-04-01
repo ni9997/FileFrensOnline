@@ -2,10 +2,10 @@
 	export let filename: string;
 </script>
 
-<li class="w-full card p-4">
+<div>
 	<a href="/api/file/{filename}">
 		<div class="">
 			{filename}
 		</div>
 	</a>
-</li>
+</div>
